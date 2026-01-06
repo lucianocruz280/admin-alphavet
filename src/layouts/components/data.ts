@@ -107,6 +107,17 @@ export const userDropdownItems: UserDropdownItemType[] = [
 ]
 
 export const menuItems: MenuItemType[] = [
+  { key: 'hospital', label: 'Hospital', isTitle: true },
+  {
+    key: 'appointments',
+    label: 'Citas',
+    icon: LuCircleGauge,
+    badge: { variant: 'success', text: '02' },
+    children: [
+      { key: 'all-appointments', label: 'Agenda', url: 'hospital/appointments/all-appointmentd' },
+      { key: 'create-appointments', label: 'Agendar Cita', url: 'hospital/appointments/create-appointment' },
+    ],
+  },
   { key: 'navigation', label: 'Navigation', isTitle: true },
   {
     key: 'dashboards',
