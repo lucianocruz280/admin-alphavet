@@ -1,5 +1,7 @@
 'use client'
 
+import { useBreeds } from '@/hooks/useBreeds'
+import { useSpecies } from '@/hooks/useSpecies'
 import api from '@/lib/axios'
 import { useEffect, useState } from 'react'
 import {
@@ -18,11 +20,6 @@ type Props = {
     customerId: string
 }
 
-
-type Species = { id: string; name: string }
-type Breed = { id: string; name: string }
-
-
 const genderOptions = [
     { value: '', label: 'Selecciona...' },
     { value: 'male', label: 'Macho' },
@@ -32,8 +29,6 @@ const genderOptions = [
 const AddPetModal = ({ show, onClose, onCreated, customerId }: Props) => {
     const [saving, setSaving] = useState(false)
     const [errors, setErrors] = useState<Record<string, string>>({})
-    const [species, setSpecies] = useState<Species[]>([])
-    const [breeds, setBreeds] = useState<Breed[]>([])
     const [speciesId, setSpeciesId] = useState('')
     const [speciesName, setSpeciesName] = useState('')
     const [breedId, setBreedId] = useState('')
@@ -42,7 +37,8 @@ const AddPetModal = ({ show, onClose, onCreated, customerId }: Props) => {
     const [newSpeciesName, setNewSpeciesName] = useState('')
     const [showNewBreed, setShowNewBreed] = useState(false)
     const [newBreedName, setNewBreedName] = useState('')
-
+    const { species, loading: speciesLoading, create: createSpecies } = useSpecies()
+    const { breeds, loading: breedsLoading, create: createBreed } = useBreeds(speciesId)
     const [form, setForm] = useState({
         name: '',
         speciesId: '',
@@ -121,32 +117,6 @@ const AddPetModal = ({ show, onClose, onCreated, customerId }: Props) => {
         }
     }
 
-    useEffect(() => {
-        if (show) {
-            loadSpecies()
-        }
-    }, [show])
-
-    const loadSpecies = async () => {
-        try {
-            const res = await api.get('/species')
-            setSpecies(res.data.data ?? res.data)
-        } catch (e) {
-            console.error('Error loading species', e)
-        }
-    }
-
-    const loadBreeds = async (speciesId: string) => {
-        try {
-            setBreeds([])
-            const res = await api.get(`/breeds?speciesId=${speciesId}`)
-            setBreeds(res.data.data ?? res.data)
-        } catch (e) {
-            console.error('Error loading breeds', e)
-        }
-    }
-
-
     return (
         <Modal show={show} onHide={onClose} size="lg" centered>
             <Modal.Header closeButton>
@@ -194,19 +164,21 @@ const AddPetModal = ({ show, onClose, onCreated, customerId }: Props) => {
                                         return
                                     }
 
-                                    const selected = species.find(s => s.id === value)
+                                    const selected = species.find((s) => s.value === value)
                                     setSpeciesId(value)
-                                    setSpeciesName(selected?.name || '')
+                                    setSpeciesName(selected?.label || '')
+                                    update('speciesId', value)
+                                    update('speciesName', selected?.label || '')
                                     setBreedId('')
                                     setBreedName('')
-                                    setBreeds([])
-                                    loadBreeds(value)
+                                    update('breedId', '')
+                                    update('breedName', '')
                                 }}
                             >
                                 <option value="">Selecciona especie</option>
                                 {species.map(s => (
-                                    <option key={s.id} value={s.id}>
-                                        {s.name}
+                                    <option key={s.value} value={s.value}>
+                                        {s.label}
                                     </option>
                                 ))}
                                 <option value="__new__">+ Agregar nueva especie</option>
@@ -217,7 +189,7 @@ const AddPetModal = ({ show, onClose, onCreated, customerId }: Props) => {
                             </Form.Control.Feedback>
                         </Form.Group>
 
-                        <Collapse in={showNewSpecies} className='space-x-4'>
+                        <Collapse in={showNewSpecies}>
                             <div className="mt-2 p-3 border rounded bg-light">
                                 <Form.Label>Nueva especie</Form.Label>
 
@@ -233,13 +205,18 @@ const AddPetModal = ({ show, onClose, onCreated, customerId }: Props) => {
                                         onClick={async () => {
                                             if (!newSpeciesName) return
 
-                                            // POST /species
-                                            const res = await api.post('/species', { name: newSpeciesName })
+                                            await createSpecies(newSpeciesName)
+                                            const created = species.find(
+                                                s => s.label.toLowerCase() === newSpeciesName.toLowerCase()
+                                            )
 
-                                            const created = res.data
-                                            setSpecies(prev => [...prev, created])
-                                            setSpeciesId(created.id)
-                                            setSpeciesName(created.name)
+                                            if (created) {
+                                                setSpeciesId(created.value)
+                                                setSpeciesName(created.label)
+
+                                                update('speciesId', created.value)
+                                                update('speciesName', created.label)
+                                            }
 
                                             setNewSpeciesName('')
                                             setShowNewSpecies(false)
@@ -262,6 +239,7 @@ const AddPetModal = ({ show, onClose, onCreated, customerId }: Props) => {
                             </div>
                         </Collapse>
 
+
                         <Form.Group>
                             <Form.Label>Raza *</Form.Label>
 
@@ -271,14 +249,19 @@ const AddPetModal = ({ show, onClose, onCreated, customerId }: Props) => {
                                 isInvalid={!!errors.breed}
                                 onChange={(e) => {
                                     const value = e.target.value
+
                                     if (value === '__new__') {
                                         setShowNewBreed(true)
                                         return
                                     }
 
-                                    const selected = breeds.find(b => b.id === value)
+                                    const selected = breeds.find(b => b.value === value)
+
                                     setBreedId(value)
-                                    setBreedName(selected?.name || '')
+                                    setBreedName(selected?.label || '')
+
+                                    update('breedId', value)
+                                    update('breedName', selected?.label || '')
                                 }}
                             >
                                 <option value="">
@@ -286,20 +269,19 @@ const AddPetModal = ({ show, onClose, onCreated, customerId }: Props) => {
                                 </option>
 
                                 {breeds.map(b => (
-                                    <option key={b.id} value={b.id}>
-                                        {b.name}
+                                    <option key={b.value} value={b.value}>
+                                        {b.label}
                                     </option>
                                 ))}
 
-                                {speciesId && (
-                                    <option value="__new__">+ Agregar nueva raza</option>
-                                )}
+                                {speciesId && <option value="__new__">+ Agregar nueva raza</option>}
                             </Form.Select>
 
                             <Form.Control.Feedback type="invalid">
                                 {errors.breed}
                             </Form.Control.Feedback>
                         </Form.Group>
+
 
                         <Collapse in={showNewBreed}>
                             <div className="mt-2 p-3 border rounded bg-light">
@@ -311,21 +293,24 @@ const AddPetModal = ({ show, onClose, onCreated, customerId }: Props) => {
                                         value={newBreedName}
                                         onChange={e => setNewBreedName(e.target.value)}
                                     />
-
                                     <Button
                                         size="sm"
                                         onClick={async () => {
                                             if (!newBreedName || !speciesId) return
 
-                                            const res = await api.post('/breeds', {
-                                                name: newBreedName,
-                                                speciesId,
-                                            })
+                                            await createBreed(newBreedName)
 
-                                            const created = res.data
-                                            setBreeds(prev => [...prev, created])
-                                            setBreedId(created.id)
-                                            setBreedName(created.name)
+                                            const created = breeds.find(
+                                                b => b.label.toLowerCase() === newBreedName.toLowerCase()
+                                            )
+
+                                            if (created) {
+                                                setBreedId(created.value)
+                                                setBreedName(created.label)
+
+                                                update('breedId', created.value)
+                                                update('breedName', created.label)
+                                            }
 
                                             setNewBreedName('')
                                             setShowNewBreed(false)
@@ -333,7 +318,6 @@ const AddPetModal = ({ show, onClose, onCreated, customerId }: Props) => {
                                     >
                                         Guardar
                                     </Button>
-
                                     <Button
                                         size="sm"
                                         variant="outline-secondary"

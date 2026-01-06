@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
     Card,
     Button,
@@ -10,17 +10,16 @@ import {
 } from 'react-bootstrap'
 import AppointmentCalendarSection from './AppointmentCalendarSection'
 import AddPetModal from './AddPetModal'
+import useAxios from '@/hooks/useAxios'
+import api from '@/lib/axios'
 
 type AppointmentDraft = {
     customerId?: string
     customerName?: string
     customerPhone?: string
-
     petId?: string
-
     branchId?: string
     serviceType?: string
-
     date?: string
     time?: string
     vetId?: string
@@ -32,13 +31,23 @@ const serviceEvents = [
     { id: 'CONSULTA', title: 'Consulta General', variant: 'primary', duration: '00:30' },
     { id: 'VACUNACION', title: 'Vacunación', variant: 'success', duration: '00:15' },
     { id: 'DESPARASITACION', title: 'Desparasitación', variant: 'warning', duration: '00:20' },
-    { id: 'ESTETICA', title: 'Estética', variant: 'info', duration: '01:00' },
+    { id: 'REVISION', title: 'Revisión', variant: 'info', duration: '00:10' },
 ]
 
 
 const AdminCreateAppointmentView = () => {
     const [draft, setDraft] = useState<AppointmentDraft>({})
     const [showPetModal, setShowPetModal] = useState(false)
+    const { data, loading } = useAxios<User[]>({ method: 'get', url: 'admin/users' })
+    console.log("data", data)
+    const [search, setSearch] = useState('')
+    const [filteredUsers, setFilteredUsers] = useState<any[]>([])
+    const [selectedUser, setSelectedUser] = useState<any | null>(null)
+
+    const [pets, setPets] = useState<any[]>([])
+    const [loadingPets, setLoadingPets] = useState(false)
+
+    const [selectedPet, setSelectedPet] = useState<any | null>(null)
 
     const update = (patch: Partial<AppointmentDraft>) =>
         setDraft(prev => ({ ...prev, ...patch }))
@@ -56,6 +65,37 @@ const AdminCreateAppointmentView = () => {
         console.log('CREATE APPOINTMENT', payload)
     }
 
+    const loadPets = async (userId: string) => {
+        setLoadingPets(true)
+        setPets([])
+        setSelectedPet(null)
+
+        try {
+            const res = await api.get(`/admin/pets/user/${userId}`)
+            const data = res.data
+            setPets(data)
+        } catch (e) {
+            console.error(e)
+        } finally {
+            setLoadingPets(false)
+        }
+    }
+
+
+    useEffect(() => {
+        if (!data) return
+
+        const q = search.toLowerCase()
+
+        const result = data.filter((u: any) =>
+            u.name?.toLowerCase().includes(q) ||
+            u.email?.toLowerCase().includes(q)
+        )
+
+        setFilteredUsers(result)
+    }, [search, data])
+
+
     return (
         <div className="container-fluid py-4">
             <AddPetModal
@@ -71,67 +111,169 @@ const AdminCreateAppointmentView = () => {
                 <Card.Body>
                     <Card.Title>Cliente</Card.Title>
 
-                    <Row className="g-2 align-items-end">
-                        <Col md={4}>
-                            <Form.Label>Teléfono / Email</Form.Label>
-                            <Form.Control placeholder="Buscar cliente…" />
-                        </Col>
-
-                        <Col md="auto">
-                            <Button>Buscar</Button>
-                        </Col>
-                    </Row>
-
-                    {/* Cliente encontrado */}
-                    <Row className="mt-3">
-                        <Col md={4}>
-                            <Form.Label>Nombre</Form.Label>
+                    <Row className="g-2">
+                        <Col md={6}>
+                            <Form.Label>Buscar por nombre o email</Form.Label>
                             <Form.Control
-                                value={draft.customerName ?? ''}
-                                onChange={e =>
-                                    update({ customerName: e.target.value })
-                                }
-                            />
-                        </Col>
-
-                        <Col md={4}>
-                            <Form.Label>Teléfono</Form.Label>
-                            <Form.Control
-                                value={draft.customerPhone ?? ''}
-                                onChange={e =>
-                                    update({ customerPhone: e.target.value })
-                                }
+                                placeholder="Escribe para buscar…"
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
                             />
                         </Col>
                     </Row>
+
+                    {search && (
+                        <div className="border rounded mt-2">
+                            {filteredUsers.length === 0 && (
+                                <div className="p-2 text-muted">
+                                    No se encontraron usuarios
+                                </div>
+                            )}
+
+                            {filteredUsers.map((u) => (
+                                <div
+                                    key={u.id}
+                                    className="p-2 border-bottom cursor-pointer hover-bg-light"
+                                    onClick={() => {
+                                        setSelectedUser(u)
+                                        setSearch('')
+                                        setFilteredUsers([])
+
+                                        update({
+                                            customerId: u.id,
+                                            customerName: u.name,
+                                            customerPhone: u.email,
+                                        })
+
+                                        loadPets(u.id)
+                                    }}
+                                >
+                                    <strong>{u.name}</strong>
+                                    <div className="text-muted small">{u.email}</div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {selectedUser && (
+                        <Row className="mt-3">
+                            <Col md={4}>
+                                <Form.Label>Nombre</Form.Label>
+                                <Form.Control value={selectedUser.name} disabled />
+                            </Col>
+
+                            <Col md={4}>
+                                <Form.Label>Email</Form.Label>
+                                <Form.Control value={selectedUser.email} disabled />
+                            </Col>
+                        </Row>
+                    )}
                 </Card.Body>
             </Card>
+
 
             {/* ================= MASCOTA ================= */}
             <Card className="mb-3">
                 <Card.Body>
                     <Card.Title>Mascota</Card.Title>
 
-                    <Row className="g-2">
-                        <Col md={6}>
-                            <Form.Select
-                                value={draft.petId ?? ''}
-                                onChange={e => update({ petId: e.target.value })}
-                            >
-                                <option value="">Selecciona mascota</option>
-                                <option value="1">Max – Labrador</option>
-                                <option value="2">Luna – Husky</option>
-                            </Form.Select>
-                        </Col>
+                    {loadingPets && <div className="text-muted">Cargando mascotas…</div>}
 
-                        <Col md="auto">
-                            <Button variant="outline-secondary" onClick={() => setShowPetModal(true)}>
-                                + Nueva mascota
-                            </Button>
-                        </Col>
-                    </Row>
+                    {!loadingPets && pets.length === 0 && (
+                        <div className="text-muted mb-2">
+                            Este cliente no cuenta con mascotas aún
+                        </div>
+                    )}
+
+                    {!loadingPets && pets.length > 0 && (
+                        <Form.Select
+                            value={draft.petId ?? ''}
+                            onChange={(e) => {
+                                const pet = pets.find(p => p.id === e.target.value)
+                                setSelectedPet(pet)
+                                update({ petId: pet.id })
+                            }}
+                        >
+                            <option value="">Selecciona mascota</option>
+                            {pets.map(p => (
+                                <option key={p.id} value={p.id}>
+                                    {p.name} – {p.breed}
+                                </option>
+                            ))}
+                        </Form.Select>
+                    )}
+
+                    <div className="mt-2">
+                        <Button
+                            variant="outline-secondary"
+                            size="sm"
+                            onClick={() => setShowPetModal(true)}
+                            disabled={!draft.customerId}
+                        >
+                            + Nueva mascota
+                        </Button>
+                    </div>
                 </Card.Body>
             </Card>
+
+            {selectedPet && (
+                <Card className="mb-3">
+                    <Card.Body>
+                        <Card.Title>Información de la mascota</Card.Title>
+
+                        <Row className="g-3">
+                            <Col md={4}>
+                                <Form.Label>Nombre</Form.Label>
+                                <Form.Control
+                                    value={selectedPet.name}
+                                    onChange={e =>
+                                        setSelectedPet({ ...selectedPet, name: e.target.value })
+                                    }
+                                />
+                            </Col>
+
+                            <Col md={4}>
+                                <Form.Label>Especie</Form.Label>
+                                <Form.Control value={selectedPet.species} disabled />
+                            </Col>
+
+                            <Col md={4}>
+                                <Form.Label>Raza</Form.Label>
+                                <Form.Control value={selectedPet.breed} disabled />
+                            </Col>
+
+                            <Col md={4}>
+                                <Form.Label>Sexo</Form.Label>
+                                <Form.Control value={selectedPet.gender} disabled />
+                            </Col>
+
+                            <Col md={4}>
+                                <Form.Label>Peso (kg)</Form.Label>
+                                <Form.Control
+                                    type="number"
+                                    value={selectedPet.weight ?? ''}
+                                    onChange={e =>
+                                        setSelectedPet({ ...selectedPet, weight: e.target.value })
+                                    }
+                                />
+                            </Col>
+
+                            <Col md={12}>
+                                <Form.Label>Notas</Form.Label>
+                                <Form.Control
+                                    as="textarea"
+                                    rows={2}
+                                    value={selectedPet.notes ?? ''}
+                                    onChange={e =>
+                                        setSelectedPet({ ...selectedPet, notes: e.target.value })
+                                    }
+                                />
+                            </Col>
+                        </Row>
+                    </Card.Body>
+                </Card>
+            )}
+
 
             {/* ================= SERVICIO / SUCURSAL ================= */}
             <Row className="g-3 mb-3">
