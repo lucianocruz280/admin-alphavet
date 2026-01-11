@@ -118,6 +118,24 @@ export const menuItems: MenuItemType[] = [
       { key: 'create-appointments', label: 'Agendar Cita', url: 'hospital/appointments/create-appointment' },
     ],
   },
+  {
+    key: 'pets',
+    label: 'Mascotas',
+    icon: LuCircleGauge,
+    children: [
+      { key: 'all-pets', label: 'Todas las Mascotas', url: 'hospital/pets/all-pets' },
+      { key: 'create-pets', label: 'Agregar Mascota', url: 'hospital/pets/create-pets' },
+    ],
+  },
+  {
+    key: 'customers',
+    label: 'Clientes',
+    icon: TbUsers,
+    children: [
+      { key: 'all-customers', label: 'Todos los clientes', url: 'hospital/customers/all-customers' },
+      { key: 'create-customers', label: 'Agregar Cliente', url: 'hospital/customers/create-customers' },
+    ],
+  },
   { key: 'navigation', label: 'Navigation', isTitle: true },
   {
     key: 'dashboards',
