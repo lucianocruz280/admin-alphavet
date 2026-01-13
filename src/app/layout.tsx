@@ -31,6 +31,7 @@ import 'bootstrap/dist/css/bootstrap.min.css'
 
 import '@/assets/scss/app.scss'
 import { ibmPlexSans, inter, nunito, poppins, publicSans, roboto } from '@/helpers/fonts'
+import AuthSessionProvider from '@/providers/SessionProvider'
 
 
 export const metadata: Metadata = {
@@ -46,7 +47,9 @@ const RootLayout = ({ children }: ChildrenType) => {
     return (
         <html lang="en" className={`${nunito.variable} ${publicSans.variable} ${poppins.variable} ${roboto.variable} ${inter.variable} ${ibmPlexSans.variable}`}>
             <body>
-                <AppWrapper>{children}</AppWrapper>
+                <AuthSessionProvider>
+                    <AppWrapper>{children}</AppWrapper>
+                </AuthSessionProvider>
             </body>
         </html>
     )

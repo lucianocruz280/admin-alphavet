@@ -114,7 +114,7 @@ export const menuItems: MenuItemType[] = [
     icon: LuCircleGauge,
     badge: { variant: 'success', text: '02' },
     children: [
-      { key: 'all-appointments', label: 'Agenda', url: 'hospital/appointments/all-appointmentd' },
+      { key: 'all-appointments', label: 'Agenda', url: 'hospital/appointments/all-appointments' },
       { key: 'create-appointments', label: 'Agendar Cita', url: 'hospital/appointments/create-appointment' },
     ],
   },
