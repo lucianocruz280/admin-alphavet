@@ -16,6 +16,7 @@ const handler = NextAuth({
         password: { type: 'password' },
       },
       async authorize(credentials) {
+        console.log(credentials)
         if (!credentials) return null
 
         const res = await axios.post(
